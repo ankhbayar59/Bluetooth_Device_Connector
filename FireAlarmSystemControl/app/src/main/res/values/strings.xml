@@ -1,0 +1,16 @@
+<resources>
+    <string name="app_name">Fire Alarm System Control</string>
+    <string name="fire_alarm_system_control">Fire Alarm System Control</string>
+    <string name="connect">Connect</string>
+    <string name="control">Control</string>
+    <string name="connect_text">connect</string>
+    <string name="control_text">control</string>
+    <string name="scan">Scan</string>
+    <string name="stop_scan">stop scan</string>
+    <string name="name">name</string>
+    <string name="address">address</string>
+    <string name="signal">signal</string>
+    <string name="name1">Name</string>
+    <string name="mac_add">MAC ADD</string>
+    <string name="signal_second">SIGNAL</string>
+</resources>
