@@ -33,11 +33,11 @@ class ScannerAdapter(
         private val onClickListener: ((device: ScanResult) -> Unit)
     ) : RecyclerView.ViewHolder(view) {
 
-        fun bind(result: ScanResult) {
-            view.name.text = result.device.name ?: "Unnamed"
-            view.MAC_ADD.text = result.device.address
-            view.signal.text = "${result.rssi} dBm"
-            view.setOnClickListener { onClickListener.invoke(result) }
+        fun bind(foundDevices: ScanResult) {
+            view.name.text = foundDevices.device.name ?: "Unnamed"
+            view.MAC_ADD.text = foundDevices.device.address
+            view.signal.text = "${foundDevices.rssi} dBm"
+            view.setOnClickListener { onClickListener.invoke(foundDevices) }
         }
     }
 }

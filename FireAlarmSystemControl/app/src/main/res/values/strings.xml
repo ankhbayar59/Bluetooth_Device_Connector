@@ -1,16 +1,21 @@
 <resources>
     <string name="app_name">Fire Alarm System Control</string>
     <string name="fire_alarm_system_control">Fire Alarm System Control</string>
-    <string name="connect">Connect</string>
-    <string name="control">Control</string>
-    <string name="connect_text">connect</string>
-    <string name="control_text">control</string>
-    <string name="scan">Scan</string>
-    <string name="stop_scan">stop scan</string>
-    <string name="name">name</string>
-    <string name="address">address</string>
-    <string name="signal">signal</string>
-    <string name="name1">Name</string>
-    <string name="mac_add">MAC ADD</string>
-    <string name="signal_second">SIGNAL</string>
+    <string name="stop_start">stop_start</string>
+    <string name="silence">silence</string>
+    <string name="trigger">trigger</string>
+    <string name="scan">scan</string>
+    <string name="connect">connect</string>
+    <string name="stop">stop start</string>
+    <string name="stop_scan">stop/scan</string>
+    <string name="force_siren">force siren</string>
+    <string name="force_silence">force silence</string>
+    <string name="log">Log</string>
+    <string name="request_mtu">Request MTU</string>
+    <string name="characteristics">Characteristics</string>
+    <string name="mtu_value">MTU value</string>
+    <string name="someground" />
+    <string name="start">START</string>
+    <string name="alarm_state">Alarm State</string>
+
 </resources>

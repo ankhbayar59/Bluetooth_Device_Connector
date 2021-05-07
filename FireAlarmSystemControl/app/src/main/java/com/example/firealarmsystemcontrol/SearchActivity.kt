@@ -2,59 +2,129 @@
 
 package com.example.firealarmsystemcontrol
 
+import android.Manifest
+import android.app.Activity
 import android.bluetooth.*
 import android.bluetooth.le.ScanCallback
+import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.SimpleItemAnimator
 import android.content.Context
+
+import android.content.Intent
+import android.content.pm.PackageManager
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.util.Log
 import kotlinx.android.synthetic.main.search.*
-
 import android.widget.Button
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import org.jetbrains.anko.alert
+import java.util.*
 
 
 
 class SearchActivity : AppCompatActivity() {
+    private val grantedLocationPermission
+        get() = hasPermission(Manifest.permission.ACCESS_FINE_LOCATION)
+    private fun Context.hasPermission(permissionType: String): Boolean {
+        return ContextCompat.checkSelfPermission(this, permissionType) ==
+                PackageManager.PERMISSION_GRANTED
+    }
 
-    private var isScanning = true
+    private val bluetoothAdapter: BluetoothAdapter by lazy {
+        val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+        bluetoothManager.adapter
+    }
+    private val bluetoothScanner by lazy {
+        bluetoothAdapter.bluetoothLeScanner
+    }
+    // Used to stop or start bluetooth scan
+    private var scanState : Boolean = false;
+    private val scanResults = mutableListOf<ScanResult>()
+    private var isFirstScan : Boolean = true;
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.search)
+        supportActionBar?.hide()
+        if(!grantedLocationPermission){
+            enableLocation()
+        }
+
         val stopScan = findViewById<Button>(R.id.stopScan)
         stopScan.setOnClickListener {
-            //boolean variable isScanning is used to check the status of the scan operation
-            //and used to stop or start scan through the button click
-            if(isScanning) {
-                isScanning = false
+            if(scanState) {
+                if(isFirstScan){
+                    runOnUiThread() {
+                        stopScan.setText("STOP")
+                    }
+                    isFirstScan = false
+                }
+                else{
+                    runOnUiThread {
+                        stopScan.setText("START")
+                    }
+                }
+                scanState = false
                 stopScanning()
             }
             else{
-                isScanning = true
+                runOnUiThread {
+                    stopScan.setText("STOP")
+                }
+                scanState = true
                 scanBLE()
             }
         }
-        setupRecyclerView()
-        //transitioning from the connectActivity through the press of "SCAN" button
-        //needs to start scan
-        scanBLE()
+        //setting up our recycler view
+        initRecyclerViewForScanner()
 
     }
 
-    //making sure to stop bluetooth scan if we decide to leave this activity
+    // in the event we leave this activity, bluetooth scan must be stopped.
     //to reduce power consumption and not have the bluetooth scan running on the background
     override fun onPause() {
         super.onPause()
-        isScanning = false
-        stopScanning()
+        if(scanState){
+            scanState = false
+            stopScanning()
+        }
     }
 
-    private fun setupRecyclerView() {
-            recyclerViewForScanner.apply {
+    override fun onResume() {
+        super.onResume()
+        bleDeviceObject.registerListener(searchListener)
+    }
+
+    private val bleScanAdapter: ScannerAdapter by lazy {
+        ScannerAdapter(scanResults) { result ->
+
+            // with bluetooth low energy is recommended to stop scanning
+            // when trying to establish connection to bluetooth device
+
+            if(scanState){
+                stopScanning()
+                scanState = false
+            }
+
+            // Letting user know that bluetooth scan is being initiated
+
+            alert {
+                title = "Starting Connection to device"
+                positiveButton("OK") {}
+            }.show()
+
+            with(result.device){
+                bleDeviceObject.connect(this, this@SearchActivity)
+            }
+        }
+    }
+
+    private fun initRecyclerViewForScanner() {
+        recyclerViewForScanner.apply {
             adapter = bleScanAdapter
             layoutManager = LinearLayoutManager(
                 this@SearchActivity,
@@ -69,56 +139,34 @@ class SearchActivity : AppCompatActivity() {
             searchResultAnimator.supportsChangeAnimations = false
         }
     }
-    private val scanResults = mutableListOf<ScanResult>()
-    private val bleScanAdapter: ScannerAdapter by lazy {
-        ScannerAdapter(scanResults) { result ->
-            //with bluetooth low energy is recommended to stop scanning
-            // when trying to establish connection to bluetooth device
-            stopScanning()
-            with(result.device){
-                Log.w("ScannerAdapter", "Connecting to bluetooth low energy device")
-                connectGatt(applicationContext, false, gattCallback)
-            }
 
-
-        }
-    }
-
-    private val gattCallback = object : BluetoothGattCallback() {
-        override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
-            val devicemacaddress = gatt.device.address
-
-            if (status == BluetoothGatt.GATT_SUCCESS) {
-                if (newState == BluetoothProfile.STATE_CONNECTED) {
-                    Log.w("BluetoothGattCallback", "Connected to $devicemacaddress")
-                    // TODO: Store a reference to BluetoothGatt
-                } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-                    Log.w("BluetoothGattCallback", "Disconnected from $devicemacaddress")
-                    gatt.close()
+    private val searchListener by lazy {
+        ConnectionListener().apply {
+            onConnection = { gatt ->
+                    Intent(this@SearchActivity, FirealarmoperationActivity::class.java).also {
+                    it.putExtra(BluetoothDevice.EXTRA_DEVICE, gatt.device)
+                    startActivity(it)
                 }
-            } else {
-                Log.w("BluetoothGattCallback", "Error $status encountered for $devicemacaddress! Disconnecting...")
-                gatt.close()
+                bleDeviceObject.unregisterListener(this)
+            }
+            onDisconnect = {
+                alert {
+                    title = "Disconnected"
+                    message = "Disconnected or unable to connect to device."
+                    positiveButton("OK") {}
+                }.show()
             }
         }
     }
 
-    private val bluetoothAdapter: BluetoothAdapter by lazy {
-        val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
-        bluetoothManager.adapter
-    }
 
-    private val bluetoothScanner by lazy {
-        bluetoothAdapter.bluetoothLeScanner
-    }
+
 
     // filter is used to reduce amount of searching by only looking for bluetooth low energy devices
     // with specific UUID that our bluetooth low energy fire alarm device is advertising
-
     /*
-    private val filterForScanning = ScanFilter.Builder().setServiceUuid(
-            ParcelUuid.fromString(ENVIRONMENTAL_SERVICE_UUID.toString())
-    ).build()
+    val uuid = ParcelUuid( it would be the custom random Uuid)
+    private val filterForScanning = ScanFilter.Builder().setServiceUuid().build()
     */
 
     //scanModeSettings will be used for parameter for
@@ -128,38 +176,82 @@ class SearchActivity : AppCompatActivity() {
         .setScanMode(ScanSettings.SCAN_MODE_BALANCED)
         .build()
 
-
-    private val scanCallback = object : ScanCallback() {
-        override fun onScanResult(callbackType: Int, scanresult: ScanResult) {
-            val indexQuery = scanResults.indexOfFirst { it.device.address == scanresult.device.address }
-            if (indexQuery != -1) { // A scan result already exists with the same address
-                scanResults[indexQuery] = scanresult
-                bleScanAdapter.notifyItemChanged(indexQuery)
-            } else {
-                with(scanresult.device) {
-                    Log.i("ScanCallback", "Found BLE device! Name: ${name ?: "Unnamed"}; address: $address")
-                }
-                scanResults.add(scanresult)
-                bleScanAdapter.notifyItemInserted(scanResults.size - 1)
-            }
-        }
-        override fun onScanFailed(errorCode: Int) {
-            Log.e("ScanCallback", "onScanFailed: code $errorCode")
-        }
+    private fun scanBLE() {
+        // before every scan, the populated list of results from previous should be cleared
+        scanResults.clear()
+        bleScanAdapter.notifyDataSetChanged()
+        bluetoothScanner.startScan(null, scanModeSettings, scanCallBack)
     }
 
     private fun stopScanning() {
-        bluetoothScanner.stopScan(scanCallback)
+
+        // simple and straightforward, telling the app platform device's bluetooth adapter to stop scanning
+        // as mentioned before, it is safer and saves energy to stop bluetooth scan if not needed.
+        bluetoothScanner.stopScan(scanCallBack)
     }
 
-    private fun scanBLE() {
-        // Based on the change in requirements for Android version M or up,
-        // location permission must be granted in order to scan for bluetooth low energy
-        // if location permission is granted already, we can start scanning for ble devices
-        // before every scan, the populated list of results from previous should be cleared
+    private val scanCallBack = object : ScanCallback() {
+        override fun onScanResult(typeOfCallBack: Int, resultFromScan: ScanResult) {
+            // scanResults.indexOfFirst returns of index of the first item that is located in the list,
+            // we are using the mac address to find
+            // we seeing if device we scanned already exist in the list
+            // if it doesn't -1 is returned
+            val isExistIndex = scanResults.indexOfFirst{
+                it.device.address == resultFromScan.device.address
+            }
 
-        scanResults.clear()
-        bleScanAdapter.notifyDataSetChanged()
-        bluetoothScanner.startScan(null, scanModeSettings, scanCallback)
+            // we just wanna check if the isExist is anything other than -1,
+            // but it should be between 0 to the size of the list
+
+            if (isExistIndex == -1) {
+                // this device doesn't exist in our scanned list
+                scanResults.add(resultFromScan)
+                // we are notifying our recycler view for our scanned results
+                // that we have made insertion into the list
+                bleScanAdapter.notifyItemInserted(scanResults.size - 1)
+            } else {
+                // if the device is already in the list, then we just insert it
+                scanResults[isExistIndex] = resultFromScan
+
+                // letting the Recycler know itemChanged
+                // the reason we still add the device it's existing index is
+                // the list needs to be up to date for better user experience
+                // we can skip, but the
+                bleScanAdapter.notifyItemChanged(isExistIndex)
+            }
+        }
     }
+
+    private fun enableLocation () {
+        // sending alert to user about why location permission must be granted
+        runOnUiThread {
+            alert {
+                title = "Location Permission Required!"
+                message = "The system requires the app to be granted location " +
+                        "permission in order to scan for bluetooth low energy devices"
+                positiveButton("OK") {
+                    requestPermission(
+                        Manifest.permission.ACCESS_FINE_LOCATION,
+                        1
+                    )
+                }
+            }.show()
+        }
+        /*
+        val builder = AlertDialog.Builder(this)
+        builder.setTitle("Location Permission Required")
+        builder.setMessage("The system requires the app to be granted location"
+                + "permission in order to scan for bluetooth low energy devices")
+        builder.setPositiveButton("Understood") { dialogInterface: DialogInterface, i: Int ->
+            requestPermission(Manifest.permission.ACCESS_FINE_LOCATION, 1)
+        }
+        builder.show()
+
+         */
+    }
+
+    private fun Activity.requestPermission(permission: String, requestCode: Int) {
+        ActivityCompat.requestPermissions(this, arrayOf(permission), requestCode)
+    }
+
 }

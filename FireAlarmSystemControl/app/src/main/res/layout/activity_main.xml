@@ -4,38 +4,39 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FBC02D"
-    android:backgroundTint="#1976D2"
+    android:background="#FFFFFF"
+    android:backgroundTint="#1E88E5"
     tools:context=".MainActivity">
 
     <Button
-        android:id="@+id/control"
-        android:layout_width="152dp"
-        android:layout_height="89dp"
-        android:backgroundTint="#1976D2"
-        android:text="control"
-        android:textColor="#FBC02D"
-        android:textSize="22sp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.066"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.522" />
-
-    <Button
         android:id="@+id/connect"
-        android:layout_width="152dp"
-        android:layout_height="89dp"
-        android:backgroundTint="#1976D2"
-        android:text="connect"
-        android:textColor="#FBC02D"
+        android:layout_width="169dp"
+        android:layout_height="72dp"
+        android:backgroundTint="#FFFFFF"
+        android:text="@string/connect"
+        android:textColor="#1E88E5"
+        android:textColorHighlight="#FFFFFF"
+        android:textColorHint="#FFFFFF"
+        android:textColorLink="#FFFFFF"
         android:textSize="22sp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.933"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.522" />
+        app:layout_constraintVertical_bias="0.964" />
+
+    <TextView
+        android:id="@+id/textView2"
+        android:layout_width="239dp"
+        android:layout_height="250dp"
+        android:gravity="center"
+        android:text="Fire Alarm Control"
+        android:textColor="#FFFFFF"
+        android:textSize="60sp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.284" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

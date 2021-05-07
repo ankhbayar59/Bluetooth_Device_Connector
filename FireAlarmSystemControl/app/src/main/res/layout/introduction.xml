@@ -4,22 +4,21 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#1976D2"
-    tools:context=".ConnectActivity">
+    android:background="#1E88E5"
+    tools:context=".IntroductionActivity">
 
-    <Button
-        android:id="@+id/scan"
-        android:layout_width="146dp"
-        android:layout_height="90dp"
-        android:backgroundTint="#1976D2"
-        android:text="@string/scan"
-        android:textColor="#FBC02D"
-        android:textSize="30sp"
+    <com.airbnb.lottie.LottieAnimationView
+        android:id="@+id/lottie"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.497"
+        app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.499" />
+        app:layout_constraintVertical_bias="0.0"
+        app:lottie_autoPlay="true"
+        app:lottie_rawRes="@raw/firefighters" />
+
 
 </androidx.constraintlayout.widget.ConstraintLayout>
