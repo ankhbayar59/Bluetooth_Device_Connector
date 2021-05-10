@@ -12,7 +12,7 @@ class IntroductionActivity : AppCompatActivity() {
         setContentView(R.layout.introduction)
         supportActionBar?.hide()
         Handler(Looper.getMainLooper()).postDelayed({
-            val intent = Intent(this@IntroductionActivity, SearchActivity::class.java)
+            val intent = Intent(this@IntroductionActivity, MainActivity::class.java)
             startActivity(intent)
             finish()
         }, 4000)
