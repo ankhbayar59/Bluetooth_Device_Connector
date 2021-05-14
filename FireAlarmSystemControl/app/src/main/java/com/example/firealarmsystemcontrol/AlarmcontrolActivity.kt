@@ -130,6 +130,15 @@ class AlarmcontrolActivity : AppCompatActivity() {
                         normalLottie.playAnimation()
                         isSilence = false
                     }
+
+                    else
+                    {
+                        normalLottie.visibility = View.GONE
+                        alertLottie.visibility = View.VISIBLE
+                        alertLottie.playAnimation()
+                    }
+
+
                 }
             }
 

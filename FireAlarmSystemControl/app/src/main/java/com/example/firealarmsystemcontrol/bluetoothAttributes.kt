@@ -28,38 +28,6 @@ data class toNotify(override val device: BluetoothDevice,
                                val characteristicUuid: UUID
 ) : bluetoothAttributes()
 
-data class DescriptorWrite(
-    override val device: BluetoothDevice,
-    val descriptorUUID: UUID,
-    val onWriteDescriptorData: ByteArray
-) : bluetoothAttributes() {
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
-
-        other as DescriptorWrite
-
-        if (device != other.device) return false
-        if (descriptorUUID != other.descriptorUUID) return false
-        if (!onWriteDescriptorData.contentEquals(other.onWriteDescriptorData)) return false
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        var result = device.hashCode()
-        result = 31 * result + descriptorUUID.hashCode()
-        result = 31 * result + onWriteDescriptorData.contentHashCode()
-        return result
-    }
-}
-
-/** Read the value of a descriptor represented by [descriptorUuid] */
-data class DescriptorRead(
-    override val device: BluetoothDevice,
-    val descriptorUUID: UUID
-) : bluetoothAttributes()
-
 data class Connect(override val device: BluetoothDevice, val context: Context) : bluetoothAttributes()
 data class Disconnect(override val device: BluetoothDevice) : bluetoothAttributes()
 
@@ -90,9 +58,6 @@ data class toWrite(
         return result
     }
 }
-data class toRead(
-    override val device: BluetoothDevice,
-    val characteristicUUID: UUID
-) : bluetoothAttributes()
+
 
 

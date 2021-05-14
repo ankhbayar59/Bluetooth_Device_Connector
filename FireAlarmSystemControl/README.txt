@@ -1,5 +1,17 @@
 # Fire Alarm System
 
+
+#github link
+
+https://github.com/ankhbayar59/Bluetooth_Device_Connector.git
+
+#Demo video link
+
+https://www.youtube.com/watch?v=de0eCwY-z3g
+
+
+###
+
 Bluetooth application used to control fire alarm system through the use bluetooth low energy
 
 ## Description

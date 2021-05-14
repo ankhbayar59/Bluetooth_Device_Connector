@@ -30,6 +30,8 @@ import java.util.concurrent.ConcurrentLinkedQueue
 object connectionManager {
 
 
+    const val CCCD = "00002902-0000-1000-8000-00805F9B34FB"
+
     private var listenerSet: MutableSet<WeakReference<ConnectionListener>> = mutableSetOf()
     private val bluetoothDeviceGattMap = ConcurrentHashMap<BluetoothDevice, BluetoothGatt>()
 
@@ -66,68 +68,17 @@ object connectionManager {
             listenerSet.remove(it)
         }
     }
-
-    fun connect(device: BluetoothDevice, context: Context) {
-        if (device.isConnected()) {
-
-            // device is already connected
-
-        } else {
-            addQueue(Connect(device, context.applicationContext))
-        }
-
-    }
-
-    fun closeConnection(device: BluetoothDevice) {
-        if (device.isConnected()) {
-            addQueue(Disconnect(device))
-        }
-    }
-
-    fun readCharacteristic(device: BluetoothDevice, characteristic: BluetoothGattCharacteristic) {
-
-        // allowsRead() is function I created to check the property of the characteristic has READ property
-        // is true, reading is allowed for this characteristic
-
-        if (device.isConnected() && characteristic.allowsRead()) {
-
-            //adding the read operation into the operation queue
-            addQueue(toRead(device, characteristic.uuid))
-        } else if (!(characteristic.allowsRead())) {
-            // these should be handled for professional coding and responsible
-            // since we wrote the firmware and setup the raspberry pi, we know for sure which characteristic allows reading
-        } else if (!device.isConnected()) {
-            Log.i("connectionManager", "Inside readCharacteristic: error[device disconnected]")
-            // same case as above, but only thing is device is disconnected
-            // for testing and debugging keeping Log here
-        }
-    }
-
-
     fun writeCharacteristic(
-        device: BluetoothDevice,
-        characteristic: BluetoothGattCharacteristic,
-        onWriteData: ByteArray
+            device: BluetoothDevice,
+            characteristic: BluetoothGattCharacteristic,
+            onWriteData: ByteArray
     ) {
-
         // we are not checking if the characteristic we are writing to has "WRITE" Property enabled,
         // since we as programmer on the app and firmware guaranteed that it has WRITE property
-        val onWriteType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
         if (device.isConnected()) {
-            addQueue(toWrite(device, characteristic.uuid, onWriteType, onWriteData))
+            addQueue(toWrite(device, characteristic.uuid, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT, onWriteData))
         }
     }
-
-
-    // used to insert new requested bluetooth operation are inserted into the queue
-
-    private fun addQueue(operation: bluetoothAttributes) {
-        bluetoothOperationQueue.add(operation)
-        if (onWait == null) {
-            end()
-        }
-    }
-
     fun enableNotifications(device: BluetoothDevice, characteristic: BluetoothGattCharacteristic) {
 
         // it is required that the property of the characteristic must be checked to know if it can notify or indicate
@@ -137,7 +88,28 @@ object connectionManager {
         }
     }
 
+    fun connect(device: BluetoothDevice, context: Context) {
+        if (!device.isConnected()) {
+            addQueue(Connect(device, context.applicationContext))
+        }
+    }
+
+    fun closeConnection(device: BluetoothDevice) {
+        if (device.isConnected()) {
+            addQueue(Disconnect(device))
+        }
+    }
+
     // end of operation, opeation in process is null
+
+
+    // used to insert new requested bluetooth operation are inserted into the queue
+    private fun addQueue(operation: bluetoothAttributes) {
+        bluetoothOperationQueue.add(operation)
+        if (onWait == null) {
+            end()
+        }
+    }
 
     private fun end() {
         Log.i("communicationManager", "End of operation $onWait")
@@ -164,13 +136,12 @@ object connectionManager {
 
 
         val nextOperation = bluetoothOperationQueue.poll() ?: run {
-            Log.i("communicationManager", "Bluetooth Operation queue empty, returning")
+            Log.i("communicationManager", "Empty Queue")
             return
         }
         onWait = nextOperation
 
         // operation waiting to be performed is pulled from top of the operation queue
-
 
         // connect to Gatt operation
         if (nextOperation is Connect) {
@@ -204,67 +175,15 @@ object connectionManager {
                     end()
                 }
             }
-            is toRead -> with(nextOperation) {
-                gatt.findCharacteristic(characteristicUUID)?.let { characteristic ->
-                    gatt.readCharacteristic(characteristic)
-                } ?: this@connectionManager.run {
-                    end()
-                }
-            }
-            is DescriptorWrite -> with(nextOperation) {
-                gatt.findDescriptor(descriptorUUID)?.let { descriptor ->
-                    descriptor.value = onWriteDescriptorData
-                    gatt.writeDescriptor(descriptor)
-                } ?: this@connectionManager.run {
-                    Log.i("connectionManager", "Cannot find $descriptorUUID to write to")
-                    end()
-                }
-            }
-            is DescriptorRead -> with(nextOperation) {
-                gatt.findDescriptor(descriptorUUID)?.let { descriptor ->
-                    gatt.readDescriptor(descriptor)
-                } ?: this@connectionManager.run {
-                    Log.i("connectionManager","Cannot find $descriptorUUID to read from")
-                    end()
-                }
-            }
             is toNotify -> with(nextOperation) {
                 gatt.findCharacteristic(characteristicUuid)?.let { characteristic ->
                     val cccdUuid = UUID.fromString(CCCD)
-                    val payload = when {
-                        characteristic.allowsIndication() ->
-                            BluetoothGattDescriptor.ENABLE_INDICATION_VALUE
-                        characteristic.allowsNotification() ->
-                            BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-                        else ->
-                            error("${characteristic.uuid} doesn't support notifications/indications")
-                    }
-
+                    val payload = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
                     characteristic.getDescriptor(cccdUuid)?.let { cccDescriptor ->
-                        if (!gatt.setCharacteristicNotification(characteristic, true)) {
-                            Log.i(
-                                "connectionManager",
-                                "setCharacteristicNotification failed for ${characteristic.uuid}"
-                            )
-                            end()
-                            return
-                        }
-
+                        gatt.setCharacteristicNotification(characteristic, true)
                         cccDescriptor.value = payload
                         gatt.writeDescriptor(cccDescriptor)
-                    } ?: this@connectionManager.run {
-                        Log.i(
-                            "connectiomManager",
-                            "${characteristic.uuid} doesn't contain the CCC descriptor!"
-                        )
-                        end()
                     }
-                } ?: this@connectionManager.run {
-                    Log.i(
-                        "connectionManager",
-                        "Cannot find $characteristicUuid! Failed to enable notifications."
-                    )
-                    end()
                 }
             }
         }
@@ -325,35 +244,7 @@ object connectionManager {
             }
         }
 
-        override fun onCharacteristicRead(
-            gatt: BluetoothGatt,
-            characteristic: BluetoothGattCharacteristic,
-            status: Int
-        ) {
-            with(characteristic) {
-                when (status) {
-                    BluetoothGatt.GATT_SUCCESS -> {
-                        Log.i("onCharacteristicRead", "Read characteristic $uuid | value: ${value}")
-                    }
 
-                    // we are not considering GATT_READ_NOT PERMITTED status, as again mentioned earlier,
-                    // the app and firmware for the project is written by us, so we know "READ" property is enabled
-                    else -> {
-                        Log.i(
-                            "onCharacteristicRead",
-                            "Error for read operation on $uuid, error: $status"
-                        )
-                    }
-                }
-            }
-
-            // if reading was our current operation on the queue, then we are done with reading,
-            // we end the oepration by clearing onWait for next operataion
-
-            if (onWait is toRead) {
-                end()
-            }
-        }
 
         override fun onCharacteristicWrite(
             gatt: BluetoothGatt,
@@ -402,73 +293,28 @@ object connectionManager {
                 // from AlarmcontrolActivity, we letting the listener know that there was change in value in the characteristic
                 // inside AlarmcontrolActivity, we as user handles it in the listener named "listenerFromAlarmControlAcivity"
                 // not just for changed callback, we handle it for the ones we care in our project, those onWrite, onChanged
-
                 listenerSet.forEach { it.get()?.onChanged?.invoke(gatt.device, this) }
             }
         }
 
         override fun onDescriptorWrite(
-            gatt: BluetoothGatt,
-            descriptor: BluetoothGattDescriptor,
-            status: Int
+                gatt: BluetoothGatt,
+                descriptor: BluetoothGattDescriptor,
+                status: Int
         ) {
-            with(descriptor) {
-                when (status) {
-                    BluetoothGatt.GATT_SUCCESS -> {
-
-                        // with the guide and information from the people at punchthtrough, there is special descriptor
-                        // that is used for notification and indication functionality
-                        // in our additional functionality we have, isCccd() is just
-                        // used to check if the descriptor uuid is matches that of cccd
-                        if (isCccd()) {
-                            onCccdWrite(gatt, value, characteristic)
-                        }
-                    }
-                }
-            }
 
             if (descriptor.isCccd() &&
-                (onWait is toNotify)
+                    (onWait is toNotify)
             ) {
-                // mentioned ear
+
                 end()
-            } else if (!descriptor.isCccd() && onWait is DescriptorWrite) {
+            } else if (!descriptor.isCccd()) {
                 end()
-            }
-        }
-
-        private fun onCccdWrite(
-            gatt: BluetoothGatt,
-            value: ByteArray,
-            characteristic: BluetoothGattCharacteristic
-        ) {
-            val charUuid = characteristic.uuid
-            val notificationsEnabled =
-                value.contentEquals(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE) ||
-                        value.contentEquals(BluetoothGattDescriptor.ENABLE_INDICATION_VALUE)
-            val notificationsDisabled =
-                value.contentEquals(BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE)
-
-            when {
-                notificationsEnabled -> {
-                    /*
-                    listenerSet.forEach {
-                        it.get()?.onNotify?.invoke(
-                            gatt.device,
-                            characteristic
-                        )
-                    }
-
-                     */
-                }
             }
         }
     }
 
     // functions and values that are used for handling some of the callbacks
-
-    const val CCCD = "00002902-0000-1000-8000-00805F9B34FB"
-
 
 
     private fun BluetoothGatt.findCharacteristic(uuid: UUID): BluetoothGattCharacteristic? {
@@ -482,21 +328,6 @@ object connectionManager {
         return null
     }
 
-    private fun BluetoothGatt.findDescriptor(uuid: UUID): BluetoothGattDescriptor? {
-        services?.forEach { service ->
-            service.characteristics.forEach { characteristic ->
-                characteristic.descriptors?.firstOrNull { descriptor ->
-                    descriptor.uuid == uuid
-                }?.let { matchingDescriptor ->
-                    return matchingDescriptor
-                }
-            }
-        }
-        return null
-    }
-
-    fun BluetoothGattCharacteristic.allowsRead(): Boolean = (properties and BluetoothGattCharacteristic.PROPERTY_READ) != 0
-    fun BluetoothGattCharacteristic.allowsWrite(): Boolean = (properties and BluetoothGattCharacteristic.PROPERTY_WRITE) != 0
     fun BluetoothGattCharacteristic.allowsIndication(): Boolean = (properties and BluetoothGattCharacteristic.PROPERTY_INDICATE) != 0
     fun BluetoothGattCharacteristic.allowsNotification(): Boolean = (properties and BluetoothGattCharacteristic.PROPERTY_NOTIFY) != 0
 
